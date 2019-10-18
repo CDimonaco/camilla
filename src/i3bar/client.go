@@ -61,6 +61,9 @@ func (c *Client) AppendBlock(currentBlocks []*Block, newBlock *Block, urgentUpda
 	if err != nil {
 		return errors.Wrap(err, "Could not append a new block")
 	}
+	// after the block appending we put on output
+	// because a new block is added
+	c.output.WriteString("," + "\n")
 	if urgentUpdate {
 		if err := ImmediateUpdate(c.process); err != nil {
 			return errors.Wrap(err, "Could not signal to the i3status process the immediate update")
