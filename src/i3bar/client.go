@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mitchellh/go-ps"
 	"github.com/pkg/errors"
 )
 
@@ -98,8 +99,41 @@ func validToken(token string) bool {
 	return token == "["
 }
 
+// FindPid function will find the pid of i3status process
+func FindPid() (int, error) {
+	findProcess := func(processes []ps.Process) ps.Process {
+		for _, p := range processes {
+			if p.Executable() == "i3status" {
+				return p
+			}
+		}
+		return nil
+	}
+
+	// Find the process
+	processes, err := ps.Processes()
+	if err != nil {
+		return 0, errors.Wrap(err, "Could not list all the processes on the system")
+	}
+	statusProcess := findProcess(processes)
+	if findProcess == nil {
+		return 0, errors.New("Could not find the i3status process")
+	}
+	return statusProcess.Pid(), nil
+}
+
 // NewClient returns a new instance of Client
-func NewClient(input *os.File, output *os.File) *Client {
+func NewClient(input *os.File, output *os.File) (*Client, error) {
+	// Find i3status pid
+	pid, err := FindPid()
+	if err != nil {
+		return nil, errors.Wrap(err, "Error during client initialization")
+	}
+	// get os.Process with the given pid
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error during client initialization")
+	}
 	inputDecoder := json.NewDecoder(input)
 	outputEncoder := json.NewEncoder(output)
 	return &Client{
@@ -107,5 +141,6 @@ func NewClient(input *os.File, output *os.File) *Client {
 		outputEncoder: outputEncoder,
 		output:        output,
 		input:         input,
-	}
+		process:       process,
+	}, nil
 }
