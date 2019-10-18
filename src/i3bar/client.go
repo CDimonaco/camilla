@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 // Client represents a client for interacting with i3bar
@@ -16,6 +18,7 @@ type Client struct {
 	inputDecoder  *json.Decoder
 	outputEncoder *json.Encoder
 	blocks        chan []*Block
+	process       *os.Process
 }
 
 // Start configure the client, initialize the
@@ -50,8 +53,19 @@ func (c *Client) Start() chan []*Block {
 
 // AppendBlock append a new block to the block passed
 // and outputs them in the encoder of i3bar protocol
-func (c *Client) AppendBlock(currentBlocks []*Block, newBlock *Block) {
-	AppendBlock(c.outputEncoder, currentBlocks, newBlock)
+// when the urgent update boolean is set a immediate
+// refresh of i3bar is performed
+func (c *Client) AppendBlock(currentBlocks []*Block, newBlock *Block, urgentUpdate bool) error {
+	err := AppendBlock(c.outputEncoder, currentBlocks, newBlock)
+	if err != nil {
+		return errors.Wrap(err, "Could not append a new block")
+	}
+	if urgentUpdate {
+		if err := ImmediateUpdate(c.process); err != nil {
+			return errors.Wrap(err, "Could not signal to the i3status process the immediate update")
+		}
+	}
+	return nil
 }
 
 // initializeCom perform the first one time  operations in order
@@ -84,6 +98,7 @@ func validToken(token string) bool {
 	return token == "["
 }
 
+// NewClient returns a new instance of Client
 func NewClient(input *os.File, output *os.File) *Client {
 	inputDecoder := json.NewDecoder(input)
 	outputEncoder := json.NewEncoder(output)
