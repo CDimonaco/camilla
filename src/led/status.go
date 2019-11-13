@@ -21,7 +21,7 @@ func Status() (Mask, error) {
 	}
 	outputString := string(output)
 	stringMask := ledMaskRegexp.FindString(outputString)
-	mask, err := strconv.ParseInt(stringMask, 2, 8)
+	mask, err := strconv.ParseInt(stringMask, 16, 16)
 	if err != nil {
 		return 0, errors.Wrap(err, "Error during int parsing of string ledmask")
 	}
